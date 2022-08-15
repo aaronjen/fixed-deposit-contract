@@ -4,12 +4,13 @@ pragma solidity ^0.8.9;
 // Import this file to use console.log
 // import "hardhat/console.sol";
 import "solmate/src/auth/Owned.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 import { IFixedDeposit } from "../interfaces/IFixedDeposit.sol";
 import { FixedDepositStorage } from "./FixedDepositStorage.sol";
 import { DepositDuration, Deposit } from "../libraries/DepositTypes.sol";
 
-contract FixedDeposit is IFixedDeposit, Owned, FixedDepositStorage {
+contract FixedDeposit is IFixedDeposit, Owned, FixedDepositStorage, ReentrancyGuard {
     mapping(DepositDuration => uint) public depositTime;
     mapping(DepositDuration => uint) public interestRate;
 
@@ -44,12 +45,10 @@ contract FixedDeposit is IFixedDeposit, Owned, FixedDepositStorage {
     }
 
     function withdraw(uint256 amount) external onlyOwner {
-        require(balance >= amount, "fund not enough to withdraw");
-        balance -= amount;
-
         address payable _to = payable(msg.sender);
-        
         _to.transfer(amount);
+
+        emit Withdraw(amount);
     }
 
 
@@ -74,7 +73,7 @@ contract FixedDeposit is IFixedDeposit, Owned, FixedDepositStorage {
         emit UserDeposit(id, msg.sender, duration, msg.value);
     }
 
-    function userCloseDeposit(uint256 depositId) external {
+    function userCloseDeposit(uint256 depositId) external nonReentrant {
         Deposit  memory _deposit = deposits[depositId];
         require(_deposit.owner == msg.sender, "sender should be deposit user");
         require(!_deposit.closed, "already closed");
@@ -86,9 +85,10 @@ contract FixedDeposit is IFixedDeposit, Owned, FixedDepositStorage {
 
         uint256 amount = _deposit.principal + getDepositInterest(depositId);
         sender.transfer(amount);
+        emit UserCloseDeposit(depositId, msg.sender, amount);
     }
 
-    function userWithdrawInterest(uint256 depositId) external {
+    function userWithdrawInterest(uint256 depositId) external nonReentrant {
         Deposit memory _deposit = deposits[depositId];
         require(_deposit.owner == msg.sender, "sender should be deposit user");
 

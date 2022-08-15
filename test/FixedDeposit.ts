@@ -172,4 +172,26 @@ describe("FixedDeposit Contract", function () {
             value: ethers.utils.parseEther("1"),
         })).to.be.revertedWith("reach deposit count limit by user")
     })
+
+    it("only owner can withdraw fund", async function() {
+        const [owner, user] = await ethers.getSigners();
+
+        const hardcap = ethers.utils.parseEther("10000")
+        const FixedDeposit = await ethers.getContractFactory("FixedDeposit").then(f => f.deploy(hardcap));
+
+        await expect(FixedDeposit.connect(user).fixedDeposit(5, {
+            value: ethers.utils.parseEther("100"),
+        })).emit(FixedDeposit, "UserDeposit")
+        .withArgs(0, user.address, 5, ethers.utils.parseEther("100"));
+
+        await expect(FixedDeposit.connect(user).withdraw(ethers.utils.parseEther("10")))
+            .to.be.rejectedWith("UNAUTHORIZED")
+
+        await expect(FixedDeposit.connect(owner).withdraw(ethers.utils.parseEther("10")))
+            .to.emit(FixedDeposit, "Withdraw")
+            .withArgs(ethers.utils.parseEther("10"))
+        
+        await expect(FixedDeposit.connect(owner).withdraw(ethers.utils.parseEther("10")))
+            .to.changeEtherBalances([FixedDeposit.address, owner.address], [ethers.utils.parseEther("-10"), ethers.utils.parseEther("10")])
+    })
 })
