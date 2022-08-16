@@ -75,6 +75,7 @@ contract FixedDeposit is IFixedDeposit, Owned, FixedDepositStorage, ReentrancyGu
 
     function userCloseDeposit(uint256 depositId) external nonReentrant {
         Deposit  memory _deposit = deposits[depositId];
+        require(block.timestamp >= _deposit.maturityTime, "deposit not maturity");
         require(_deposit.owner == msg.sender, "sender should be deposit user");
         require(!_deposit.closed, "already closed");
         address payable sender = payable(msg.sender);

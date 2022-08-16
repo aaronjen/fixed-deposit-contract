@@ -194,4 +194,18 @@ describe("FixedDeposit Contract", function () {
         await expect(FixedDeposit.connect(owner).withdraw(ethers.utils.parseEther("10")))
             .to.changeEtherBalances([FixedDeposit.address, owner.address], [ethers.utils.parseEther("-10"), ethers.utils.parseEther("10")])
     })
+
+    it("only maturity deposit can be closed", async function() {
+        const [owner, user] = await ethers.getSigners();
+        const hardcap = ethers.utils.parseEther("10000")
+        const FixedDeposit = await ethers.getContractFactory("FixedDeposit").then(f => f.deploy(hardcap));
+
+        await expect(FixedDeposit.connect(user).fixedDeposit(5, {
+            value: ethers.utils.parseEther("10")
+        })).emit(FixedDeposit, "UserDeposit")
+        .withArgs(0, user.address, 5, ethers.utils.parseEther("10"))
+
+        await expect(FixedDeposit.connect(user).userCloseDeposit(0))
+            .to.be.revertedWith("deposit not maturity");
+    })
 })
